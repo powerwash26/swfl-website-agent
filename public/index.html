@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SWFL Clean & Wash — Get a Quote</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f6f5f2; margin:0; padding:16px; }
+  .wrap { max-width:640px; margin:0 auto; }
+  h1 { font-size:18px; }
+  .card { background:#fff; border:1px solid #e2ddd3; border-radius:14px; padding:16px; margin-top:12px; }
+  .chat { display:flex; flex-direction:column; gap:8px; max-height:50vh; overflow-y:auto; }
+  .msg { max-width:85%; padding:8px 12px; border-radius:14px; font-size:14px; }
+  .msg.user { align-self:flex-end; background:#1f5c4a; color:#fff; }
+  .msg.assistant { align-self:flex-start; background:#e7efe9; }
+  .composer { display:flex; gap:8px; margin-top:10px; }
+  input, button { font-family:inherit; font-size:14px; }
+  input[type=text],input[type=tel] { flex:1; padding:8px 10px; border:1px solid #ccc; border-radius:8px; }
+  button { padding:8px 14px; border:none; border-radius:8px; background:#1f5c4a; color:#fff; cursor:pointer; }
+  .slots { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .slot { border:1px solid #ccc; border-radius:8px; padding:8px; text-align:center; cursor:pointer; font-size:13px; }
+  .slot.selected { background:#e7efe9; border-color:#1f5c4a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Southwest Florida Clean &amp; Wash — Instant Quote</h1>
+  <div class="card">
+    <div class="chat" id="chat"></div>
+    <div class="composer">
+      <input type="text" id="userInput" placeholder="What do you need done, and where?">
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+  <div class="card" id="slotsCard" style="display:none;">
+    <div class="slots" id="slots"></div>
+    <input type="text" id="name" placeholder="Name" style="width:100%;margin-top:8px;padding:8px;border:1px solid #ccc;border-radius:8px;">
+    <input type="tel" id="phone" placeholder="Phone" style="width:100%;margin-top:8px;padding:8px;border:1px solid #ccc;border-radius:8px;">
+    <input type="text" id="address" placeholder="Address" style="width:100%;margin-top:8px;padding:8px;border:1px solid #ccc;border-radius:8px;">
+    <button id="bookBtn" style="width:100%;margin-top:8px;">Confirm booking</button>
+  </div>
+</div>
+<script>
+  const state = { messages: [], quote: null, slots: [], selected: null };
+
+  function addMsg(role, text) {
+    state.messages.push({ role, content: text });
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    div.textContent = text;
+    document.getElementById('chat').appendChild(div);
+  }
+
+  function parseQuoteMarker(text) {
+    const m = text.match(/QUOTE_READY\|(\w+)\|(\d+(?:\.\d+)?)\|(\d+(?:\.\d+)?)/);
+    if (!m) return { clean: text, quote: null };
+    return { clean: text.replace(m[0], '').trim(), quote: { divisionKey: m[1], low: +m[2], high: +m[3] } };
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('userInput');
+    const text = input.value.trim();
+    if (!text) return;
+    addMsg('user', text);
+    input.value = '';
+    const res = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: state.messages })
+    }).then(r => r.json());
+    const { clean, quote } = parseQuoteMarker(res.text || '');
+    addMsg('assistant', clean || res.text || '(no response)');
+    if (quote) { state.quote = quote; await loadSlots(); }
+  }
+
+  async function loadSlots() {
+    const res = await fetch('/api/slots').then(r => r.json());
+    state.slots = res.slots.filter(s => !s.taken);
+    const el = document.getElementById('slots');
+    el.innerHTML = '';
+    state.slots.slice(0, 8).forEach((s, i) => {
+      const div = document.createElement('div');
+      div.className = 'slot' + (state.selected === i ? ' selected' : '');
+      div.textContent = s.date + ' · ' + s.time;
+      div.onclick = () => { state.selected = i; loadSlots(); };
+      el.appendChild(div);
+    });
+    document.getElementById('slotsCard').style.display = 'block';
+  }
+
+  async function book() {
+    if (state.selected === null) return;
+    const slot = state.slots[state.selected];
+    const body = {
+      name: document.getElementById('name').value,
+      phone: document.getElementById('phone').value,
+      address: document.getElementById('address').value,
+      division: state.quote ? state.quote.divisionKey : 'default',
+      slot,
+      quote: state.quote
+    };
+    const res = await fetch('/api/book', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(r => r.json());
+    if (res.error) { addMsg('assistant', 'Sorry, that slot just got taken — pick another.'); await loadSlots(); return; }
+    addMsg('assistant', 'Got it — your request for ' + slot.date + ' at ' + slot.time + ' is being confirmed by our team, you\'ll hear back shortly. Documents to expect: ' + res.documents.join(', '));
+  }
+
+  document.getElementById('sendBtn').onclick = sendMessage;
+  document.getElementById('userInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+  document.getElementById('bookBtn').onclick = book;
+
+  addMsg('assistant', "Hi, I'm the SWFL intake assistant. Tell me what you need done and roughly where.");
+</script>
+</body>
+</html>
