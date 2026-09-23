@@ -5,111 +5,298 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SWFL Clean & Wash — Get a Quote</title>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f6f5f2; margin:0; padding:16px; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f6f5f2; margin:0; padding:16px; color:#1f2420; }
   .wrap { max-width:640px; margin:0 auto; }
-  h1 { font-size:18px; }
-  .card { background:#fff; border:1px solid #e2ddd3; border-radius:14px; padding:16px; margin-top:12px; }
-  .chat { display:flex; flex-direction:column; gap:8px; max-height:50vh; overflow-y:auto; }
-  .msg { max-width:85%; padding:8px 12px; border-radius:14px; font-size:14px; }
-  .msg.user { align-self:flex-end; background:#1f5c4a; color:#fff; }
-  .msg.assistant { align-self:flex-start; background:#e7efe9; }
-  .composer { display:flex; gap:8px; margin-top:10px; }
-  input, button { font-family:inherit; font-size:14px; }
-  input[type=text],input[type=tel] { flex:1; padding:8px 10px; border:1px solid #ccc; border-radius:8px; }
-  button { padding:8px 14px; border:none; border-radius:8px; background:#1f5c4a; color:#fff; cursor:pointer; }
-  .slots { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
-  .slot { border:1px solid #ccc; border-radius:8px; padding:8px; text-align:center; cursor:pointer; font-size:13px; }
-  .slot.selected { background:#e7efe9; border-color:#1f5c4a; }
+  h1 { font-size:20px; margin-bottom:4px; }
+  .sub { color:#5c6259; font-size:14px; margin-top:0; }
+  .card { background:#fff; border:1px solid #e2ddd3; border-radius:14px; padding:18px; margin-top:14px; }
+  label { display:block; font-size:13px; font-weight:600; margin:12px 0 4px; }
+  select, input[type=text], input[type=tel], input[type=number], input[type=date] {
+    width:100%; box-sizing:border-box; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:15px; font-family:inherit;
+  }
+  button { margin-top:16px; width:100%; padding:12px; border:none; border-radius:8px; background:#1f5c4a; color:#fff; font-size:15px; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; }
+  button.secondary { background:transparent; color:#1f5c4a; border:1px solid #1f5c4a; }
+  .hidden { display:none; }
+  .quote-box { background:#e7efe9; border-radius:10px; padding:16px; margin-top:14px; }
+  .quote-amount { font-size:28px; font-weight:700; color:#1f5c4a; }
+  .disclaimer { font-size:12px; color:#5c6259; margin-top:10px; line-height:1.5; }
+  .error { color:#b1442e; font-size:13px; margin-top:8px; }
+  .success { text-align:center; padding:20px; }
+  .success h2 { color:#1f5c4a; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Southwest Florida Clean &amp; Wash — Instant Quote</h1>
-  <div class="card">
-    <div class="chat" id="chat"></div>
-    <div class="composer">
-      <input type="text" id="userInput" placeholder="What do you need done, and where?">
-      <button id="sendBtn">Send</button>
-    </div>
+  <h1>Southwest Florida Clean &amp; Wash</h1>
+  <p class="sub">Get an instant estimate from our real service rates.</p>
+
+  <!-- STEP 1: choose division -->
+  <div class="card" id="step1">
+    <label for="division">What do you need?</label>
+    <select id="division">
+      <option value="">Select a service...</option>
+      <option value="residentialCleaning">Residential Cleaning</option>
+      <option value="commercialCleaning">Commercial Cleaning</option>
+      <option value="strTurnover">STR / Airbnb Turnover</option>
+      <option value="residentialPW">Residential Pressure Washing</option>
+      <option value="commercialPW">Commercial Pressure Washing</option>
+    </select>
+
+    <div id="fieldsContainer"></div>
+
+    <button id="getQuoteBtn" disabled>Get Estimate</button>
+    <div class="error" id="quoteError"></div>
   </div>
-  <div class="card" id="slotsCard" style="display:none;">
-    <div class="slots" id="slots"></div>
-    <input type="text" id="name" placeholder="Name" style="width:100%;margin-top:8px;padding:8px;border:1px solid #ccc;border-radius:8px;">
-    <input type="tel" id="phone" placeholder="Phone" style="width:100%;margin-top:8px;padding:8px;border:1px solid #ccc;border-radius:8px;">
-    <input type="text" id="address" placeholder="Address" style="width:100%;margin-top:8px;padding:8px;border:1px solid #ccc;border-radius:8px;">
-    <button id="bookBtn" style="width:100%;margin-top:8px;">Confirm booking</button>
+
+  <!-- STEP 2: quote result -->
+  <div class="card hidden" id="step2">
+    <div class="quote-box" id="quoteBox"></div>
+    <p class="disclaimer">
+      <strong>This is an estimate only.</strong> It's based entirely on the information you provided.
+      Final pricing is confirmed on-site and may change based on actual size, condition, and access —
+      for example, heavier buildup, larger measurements than estimated, or restricted access can affect
+      the final price. A $80 trip charge applies to every job.
+    </p>
+    <button id="continueBtn">Continue — request this service</button>
+    <button class="secondary" id="backBtn" style="margin-top:8px;">Start over</button>
+  </div>
+
+  <!-- STEP 3: contact + preferred date -->
+  <div class="card hidden" id="step3">
+    <label>Full name</label>
+    <input type="text" id="custName">
+    <label>Phone</label>
+    <input type="tel" id="custPhone">
+    <label>Service address</label>
+    <input type="text" id="custAddress">
+    <label>Preferred date</label>
+    <input type="date" id="custDate">
+    <label>Preferred time</label>
+    <select id="custTime">
+      <option value="8:00 AM">8:00 AM</option>
+      <option value="1:00 PM">1:00 PM</option>
+    </select>
+    <button id="submitBtn">Submit Request</button>
+    <div class="error" id="submitError"></div>
+  </div>
+
+  <!-- STEP 4: confirmation -->
+  <div class="card hidden success" id="step4">
+    <h2>Request received</h2>
+    <p id="successMsg"></p>
+    <p class="disclaimer">Our team will confirm your date and time shortly — final pricing is verified on-site per the estimate terms above.</p>
   </div>
 </div>
+
 <script>
-  const state = { messages: [], quote: null, slots: [], selected: null };
+  const state = { division: null, quote: null };
 
-  function addMsg(role, text) {
-    state.messages.push({ role, content: text });
-    const div = document.createElement('div');
-    div.className = 'msg ' + role;
-    div.textContent = text;
-    document.getElementById('chat').appendChild(div);
+  const FIELD_SETS = {
+    residentialCleaning: [
+      { id: 'sqft', label: 'Approximate square footage', type: 'number' },
+      { id: 'tier', label: 'Service type', type: 'select', options: [
+        ['standard', 'Standard Clean (maintenance)'],
+        ['deep', 'Deep Clean (first-time / reset)'],
+        ['moveInOut', 'Move-In / Move-Out (empty property)']
+      ]}
+    ],
+    commercialCleaning: [
+      { id: 'sqft', label: 'Approximate square footage', type: 'number' },
+      { id: 'frequency', label: 'How often?', type: 'select', options: [
+        ['weekly', 'Weekly'], ['twice', '2x per week'], ['thrice', '3x per week'], ['five', '5x per week']
+      ]}
+    ],
+    strTurnover: [
+      { id: 'sqft', label: 'Property square footage', type: 'number' },
+      { id: 'tier', label: 'Turnover type', type: 'select', options: [
+        ['standard', 'Standard Turnover'], ['enhanced', 'Enhanced Turnover'], ['deepReset', 'Deep Reset (post-issue / heavy soil)']
+      ]}
+    ],
+    residentialPW: [
+      { id: 'service', label: 'What needs washing?', type: 'select', options: [
+        ['bundle', 'A bundle package (best value)'],
+        ['driveway', 'Driveway only'],
+        ['patio', 'Patio / Pool Deck'],
+        ['houseWash', 'House Wash'],
+        ['fence', 'Fence']
+      ], triggersDynamic: true }
+    ],
+    commercialPW: [
+      { id: 'service', label: 'What needs washing?', type: 'select', options: [
+        ['flatwork', 'Flatwork (lot, sidewalks, drive lanes)'],
+        ['buildingExterior', 'Building Exterior / Storefront'],
+        ['restaurant', 'Restaurant / High-Grease Area'],
+        ['dumpsterPad', 'Dumpster Pad']
+      ], triggersDynamic: true },
+      { id: 'sqft', label: 'Approximate square footage', type: 'number' },
+      { id: 'tier', label: 'Condition', type: 'select', options: [
+        ['maintenance', 'Light / routine'], ['standard', 'Standard buildup'], ['heavy', 'Heavy / neglected']
+      ]}
+    ]
+  };
+
+  // Extra fields that only show up depending on the sub-service chosen (residentialPW)
+  const RESIDENTIAL_PW_SUBFIELDS = {
+    driveway: [{ id: 'size', label: 'Driveway size', type: 'select', options: [['1car','1-car'],['2car','2-car'],['3car','3-car']] }],
+    patio: [{ id: 'sqft', label: 'Approximate square footage', type: 'number' }],
+    houseWash: [{ id: 'stories', label: 'Number of stories', type: 'select', options: [[1,'1 story'],[2,'2 story']] },
+                { id: 'exterior', label: 'Exterior material (leave blank if unsure)', type: 'text' }],
+    fence: [{ id: 'linearFeet', label: 'Linear feet of fence', type: 'number' },
+            { id: 'bothSides', label: 'Clean both sides?', type: 'select', options: [['','One side'],['true','Both sides']] }],
+    bundle: [{ id: 'bundleName', label: 'Which bundle?', type: 'select', options: [
+                ['basicCurb', 'Basic Curb ($220)'], ['exteriorRefresh', 'Exterior Refresh ($360)'],
+                ['fullExteriorClean', 'Full Exterior Clean'], ['completeProperty', 'Complete Property']
+              ]},
+              { id: 'stories', label: 'Number of stories', type: 'select', options: [[1,'1 story'],[2,'2 story']] }]
+  };
+
+  const divisionSelect = document.getElementById('division');
+  const fieldsContainer = document.getElementById('fieldsContainer');
+  const getQuoteBtn = document.getElementById('getQuoteBtn');
+
+  function renderField(f) {
+    const wrap = document.createElement('div');
+    const label = document.createElement('label');
+    label.textContent = f.label;
+    wrap.appendChild(label);
+
+    if (f.type === 'select') {
+      const sel = document.createElement('select');
+      sel.id = f.id;
+      sel.innerHTML = '<option value="">Select...</option>' + f.options.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+      if (f.triggersDynamic) sel.addEventListener('change', renderDynamicSubfields);
+      wrap.appendChild(sel);
+    } else {
+      const input = document.createElement('input');
+      input.type = f.type;
+      input.id = f.id;
+      wrap.appendChild(input);
+    }
+    fieldsContainer.appendChild(wrap);
   }
 
-  function parseQuoteMarker(text) {
-    const m = text.match(/QUOTE_READY\|(\w+)\|(\d+(?:\.\d+)?)\|(\d+(?:\.\d+)?)/);
-    if (!m) return { clean: text, quote: null };
-    return { clean: text.replace(m[0], '').trim(), quote: { divisionKey: m[1], low: +m[2], high: +m[3] } };
-  }
-
-  async function sendMessage() {
-    const input = document.getElementById('userInput');
-    const text = input.value.trim();
-    if (!text) return;
-    addMsg('user', text);
-    input.value = '';
-    const res = await fetch('/api/chat', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: state.messages })
-    }).then(r => r.json());
-    const { clean, quote } = parseQuoteMarker(res.text || '');
-    addMsg('assistant', clean || res.text || '(no response)');
-    if (quote) { state.quote = quote; await loadSlots(); }
-  }
-
-  async function loadSlots() {
-    const res = await fetch('/api/slots').then(r => r.json());
-    state.slots = res.slots.filter(s => !s.taken);
-    const el = document.getElementById('slots');
-    el.innerHTML = '';
-    state.slots.slice(0, 8).forEach((s, i) => {
-      const div = document.createElement('div');
-      div.className = 'slot' + (state.selected === i ? ' selected' : '');
-      div.textContent = s.date + ' · ' + s.time;
-      div.onclick = () => { state.selected = i; loadSlots(); };
-      el.appendChild(div);
+  function renderDynamicSubfields() {
+    // remove any previously injected dynamic fields
+    document.querySelectorAll('[data-dynamic]').forEach(el => el.remove());
+    const service = document.getElementById('service').value;
+    const subfields = RESIDENTIAL_PW_SUBFIELDS[service] || [];
+    subfields.forEach(f => {
+      const wrap = document.createElement('div');
+      wrap.setAttribute('data-dynamic', '1');
+      const label = document.createElement('label');
+      label.textContent = f.label;
+      wrap.appendChild(label);
+      if (f.type === 'select') {
+        const sel = document.createElement('select');
+        sel.id = f.id;
+        sel.innerHTML = '<option value="">Select...</option>' + f.options.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+        wrap.appendChild(sel);
+      } else {
+        const input = document.createElement('input');
+        input.type = f.type;
+        input.id = f.id;
+        wrap.appendChild(input);
+      }
+      fieldsContainer.appendChild(wrap);
     });
-    document.getElementById('slotsCard').style.display = 'block';
   }
 
-  async function book() {
-    if (state.selected === null) return;
-    const slot = state.slots[state.selected];
+  divisionSelect.addEventListener('change', () => {
+    state.division = divisionSelect.value;
+    fieldsContainer.innerHTML = '';
+    document.getElementById('quoteError').textContent = '';
+    if (!state.division) { getQuoteBtn.disabled = true; return; }
+    FIELD_SETS[state.division].forEach(renderField);
+    getQuoteBtn.disabled = false;
+  });
+
+  function collectParams() {
+    const params = {};
+    fieldsContainer.querySelectorAll('input, select').forEach(el => {
+      if (!el.id || !el.value) return;
+      params[el.id] = el.id === 'bothSides' ? (el.value === 'true') : (el.id === 'stories' ? Number(el.value) : el.value);
+    });
+    return params;
+  }
+
+  function formatQuote(result) {
+    if (result.requiresAssessment) return { text: 'Needs an on-site assessment', detail: result.reason };
+    if (result.outOfScope) return { text: 'Outside current service scope', detail: result.reason };
+    if (result.internalAnchorOnly || result.onSiteQuote) return { text: 'Quoted on-site', detail: result.note || 'This service is priced after a walkthrough or photos — our team will follow up.' };
+    if (result.error) return { text: 'Need more details', detail: 'Please double check your selections and try again.' };
+    if (typeof result.total === 'number') return { text: '$' + result.total, detail: result.note || result.csrNote || '' };
+    if (typeof result.flat === 'number') return { text: '$' + result.flat, detail: result.note || '' };
+    if (typeof result.low === 'number') return { text: '$' + result.low + (result.high !== result.low ? '–$' + result.high : ''), detail: result.note || result.initialResetNote || '' };
+    return { text: 'Contact us for pricing', detail: '' };
+  }
+
+  getQuoteBtn.addEventListener('click', async () => {
+    document.getElementById('quoteError').textContent = '';
+    const params = collectParams();
+    try {
+      const res = await fetch('/api/quote', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ division: state.division, ...params })
+      }).then(r => r.json());
+
+      if (res.error) { document.getElementById('quoteError').textContent = 'Please fill in all fields.'; return; }
+
+      state.quote = res.result;
+      const formatted = formatQuote(res.result);
+      document.getElementById('quoteBox').innerHTML =
+        `<div class="quote-amount">${formatted.text}</div>` +
+        (formatted.detail ? `<div style="margin-top:6px;font-size:13px;color:#5c6259;">${formatted.detail}</div>` : '');
+
+      document.getElementById('step1').classList.add('hidden');
+      document.getElementById('step2').classList.remove('hidden');
+    } catch (e) {
+      document.getElementById('quoteError').textContent = 'Something went wrong — please try again.';
+    }
+  });
+
+  document.getElementById('continueBtn').addEventListener('click', () => {
+    document.getElementById('step2').classList.add('hidden');
+    document.getElementById('step3').classList.remove('hidden');
+  });
+
+  document.getElementById('backBtn').addEventListener('click', () => location.reload());
+
+  document.getElementById('submitBtn').addEventListener('click', async () => {
+    const name = document.getElementById('custName').value.trim();
+    const phone = document.getElementById('custPhone').value.trim();
+    const address = document.getElementById('custAddress').value.trim();
+    const date = document.getElementById('custDate').value;
+    const time = document.getElementById('custTime').value;
+    const errEl = document.getElementById('submitError');
+    errEl.textContent = '';
+
+    if (!name || !phone || !address || !date) { errEl.textContent = 'Please fill in all fields.'; return; }
+
+    const formatted = formatQuote(state.quote);
     const body = {
-      name: document.getElementById('name').value,
-      phone: document.getElementById('phone').value,
-      address: document.getElementById('address').value,
-      division: state.quote ? state.quote.divisionKey : 'default',
-      slot,
-      quote: state.quote
+      name, phone, address,
+      division: state.division,
+      slot: { date, time },
+      quote: { low: parseFloat((formatted.text.match(/\d+/) || [0])[0]) || 0, high: parseFloat((formatted.text.match(/\d+(?!.*\d)/) || [0])[0]) || 0, label: formatted.text }
     };
-    const res = await fetch('/api/book', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-    }).then(r => r.json());
-    if (res.error) { addMsg('assistant', 'Sorry, that slot just got taken — pick another.'); await loadSlots(); return; }
-    addMsg('assistant', 'Got it — your request for ' + slot.date + ' at ' + slot.time + ' is being confirmed by our team, you\'ll hear back shortly. Documents to expect: ' + res.documents.join(', '));
-  }
 
-  document.getElementById('sendBtn').onclick = sendMessage;
-  document.getElementById('userInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
-  document.getElementById('bookBtn').onclick = book;
+    try {
+      const res = await fetch('/api/book', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      }).then(r => r.json());
 
-  addMsg('assistant', "Hi, I'm the SWFL intake assistant. Tell me what you need done and roughly where.");
+      if (res.error === 'slot_unavailable') { errEl.textContent = 'That date/time just got taken — please pick another.'; return; }
+      if (res.error) { errEl.textContent = 'Something went wrong — please try again or call us.'; return; }
+
+      document.getElementById('step3').classList.add('hidden');
+      document.getElementById('step4').classList.remove('hidden');
+      document.getElementById('successMsg').textContent =
+        `We received your request for ${date} at ${time}. Documents to expect: ${res.documents.join(', ')}.`;
+    } catch (e) {
+      errEl.textContent = 'Something went wrong — please try again or call us.';
+    }
+  });
 </script>
 </body>
 </html>
