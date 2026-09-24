@@ -1,5 +1,13 @@
 const { getStore } = require('@netlify/blobs');
 
+function store() {
+  return getStore({
+    name: 'swfl-data',
+    siteID: process.env.NETLIFY_SITE_ID,
+    token: process.env.NETLIFY_API_TOKEN
+  });
+}
+
 function nextWeekdays(n) {
   const out = []; let d = new Date();
   while (out.length < n) {
@@ -11,8 +19,8 @@ function nextWeekdays(n) {
 }
 
 async function loadDB() {
-  const store = getStore('swfl-data');
-  let db = await store.get('db', { type: 'json' });
+  const s = store();
+  let db = await s.get('db', { type: 'json' });
   if (!db) {
     db = { bookings: [], capacity: {} };
     for (const date of nextWeekdays(5)) {
@@ -21,14 +29,14 @@ async function loadDB() {
         { time: '1:00 PM', taken: false }
       ];
     }
-    await store.setJSON('db', db);
+    await s.setJSON('db', db);
   }
   return db;
 }
 
 async function saveDB(db) {
-  const store = getStore('swfl-data');
-  await store.setJSON('db', db);
+  const s = store();
+  await s.setJSON('db', db);
 }
 
 module.exports = { loadDB, saveDB };
