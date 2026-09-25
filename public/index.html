@@ -11,7 +11,7 @@
   .sub { color:#5c6259; font-size:14px; margin-top:0; }
   .card { background:#fff; border:1px solid #e2ddd3; border-radius:14px; padding:18px; margin-top:14px; }
   label { display:block; font-size:13px; font-weight:600; margin:12px 0 4px; }
-  select, input[type=text], input[type=tel], input[type=number], input[type=date] {
+  select, input[type=text], input[type=tel], input[type=number], input[type=date], input[type=time] {
     width:100%; box-sizing:border-box; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:15px; font-family:inherit;
   }
   button { margin-top:16px; width:100%; padding:12px; border:none; border-radius:8px; background:#1f5c4a; color:#fff; font-size:15px; font-weight:600; cursor:pointer; }
@@ -73,10 +73,7 @@
     <label>Preferred date</label>
     <input type="date" id="custDate">
     <label>Preferred time</label>
-    <select id="custTime">
-      <option value="8:00 AM">8:00 AM</option>
-      <option value="1:00 PM">1:00 PM</option>
-    </select>
+    <input type="time" id="custTime" value="08:00">
     <button id="submitBtn">Submit Request</button>
     <div class="error" id="submitError"></div>
   </div>
@@ -222,6 +219,84 @@
 
   function formatQuote(result) {
     if (result.requiresAssessment) return { text: 'Needs an on-site assessment', detail: result.reason };
+    if (result.outOfScope) return { text: 'Outside current service scope', detail: result.reason };
+    if (result.internalAnchorOnly || result.onSiteQuote) return { text: 'Quoted on-site', detail: result.note || 'This service is priced after a walkthrough or photos — our team will follow up.' };
+    if (result.error) return { text: 'Need more details', detail: 'Please double check your selections and try again.' };
+    if (typeof result.total === 'number') return { text: '$' + result.total, detail: result.note || result.csrNote || '' };
+    if (typeof result.flat === 'number') return { text: '$' + result.flat, detail: result.note || '' };
+    if (typeof result.low === 'number') return { text: '$' + result.low + (result.high !== result.low ? '–$' + result.high : ''), detail: result.note || result.initialResetNote || '' };
+    return { text: 'Contact us for pricing', detail: '' };
+  }
+
+  getQuoteBtn.addEventListener('click', async () => {
+    document.getElementById('quoteError').textContent = '';
+    const params = collectParams();
+    try {
+      const res = await fetch('/api/quote', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ division: state.division, ...params })
+      }).then(r => r.json());
+
+      if (res.error) { document.getElementById('quoteError').textContent = 'Please fill in all fields.'; return; }
+
+      state.quote = res.result;
+      const formatted = formatQuote(res.result);
+      document.getElementById('quoteBox').innerHTML =
+        `<div class="quote-amount">${formatted.text}</div>` +
+        (formatted.detail ? `<div style="margin-top:6px;font-size:13px;color:#5c6259;">${formatted.detail}</div>` : '');
+
+      document.getElementById('step1').classList.add('hidden');
+      document.getElementById('step2').classList.remove('hidden');
+    } catch (e) {
+      document.getElementById('quoteError').textContent = 'Something went wrong — please try again.';
+    }
+  });
+
+  document.getElementById('continueBtn').addEventListener('click', () => {
+    document.getElementById('step2').classList.add('hidden');
+    document.getElementById('step3').classList.remove('hidden');
+  });
+
+  document.getElementById('backBtn').addEventListener('click', () => location.reload());
+
+  document.getElementById('submitBtn').addEventListener('click', async () => {
+    const name = document.getElementById('custName').value.trim();
+    const phone = document.getElementById('custPhone').value.trim();
+    const address = document.getElementById('custAddress').value.trim();
+    const date = document.getElementById('custDate').value;
+    const time = document.getElementById('custTime').value;
+    const errEl = document.getElementById('submitError');
+    errEl.textContent = '';
+
+    if (!name || !phone || !address || !date) { errEl.textContent = 'Please fill in all fields.'; return; }
+
+    const formatted = formatQuote(state.quote);
+    const body = {
+      name, phone, address,
+      division: state.division,
+      slot: { date, time },
+      quote: { low: parseFloat((formatted.text.match(/\d+/) || [0])[0]) || 0, high: parseFloat((formatted.text.match(/\d+(?!.*\d)/) || [0])[0]) || 0, label: formatted.text }
+    };
+
+    try {
+      const res = await fetch('/api/book', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      }).then(r => r.json());
+
+      if (res.error === 'slot_unavailable') { errEl.textContent = 'That date/time just got taken — please pick another.'; return; }
+      if (res.error) { errEl.textContent = 'Something went wrong — please try again or call us.'; return; }
+
+      document.getElementById('step3').classList.add('hidden');
+      document.getElementById('step4').classList.remove('hidden');
+      document.getElementById('successMsg').textContent =
+        `We received your request for ${date} at ${time}. Documents to expect: ${res.documents.join(', ')}.`;
+    } catch (e) {
+      errEl.textContent = 'Something went wrong — please try again or call us.';
+    }
+  });
+</script>
+</body>
+</html>equiresAssessment) return { text: 'Needs an on-site assessment', detail: result.reason };
     if (result.outOfScope) return { text: 'Outside current service scope', detail: result.reason };
     if (result.internalAnchorOnly || result.onSiteQuote) return { text: 'Quoted on-site', detail: result.note || 'This service is priced after a walkthrough or photos — our team will follow up.' };
     if (result.error) return { text: 'Need more details', detail: 'Please double check your selections and try again.' };
