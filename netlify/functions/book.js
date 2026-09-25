@@ -5,22 +5,26 @@ const { notifyTeam } = require('./_mailer');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method not allowed' };
-  const { name, phone, address, division, slot, quote } = JSON.parse(event.body || '{}');
-  if (!name || !phone || !address || !slot) {
+  const { name, phone, email, address, division, slot, quote } = JSON.parse(event.body || '{}');
+  if (!name || !phone || !email || !address || !slot) {
     return { statusCode: 400, body: JSON.stringify({ error: 'missing_fields' }) };
   }
 
   const db = await loadDB();
+  if (!db.capacity[slot.date]) {
+    db.capacity[slot.date] = [{ time: '8:00 AM', taken: false }, { time: '1:00 PM', taken: false }];
+  }
   const daySlots = db.capacity[slot.date];
-  const match = daySlots && daySlots.find(s => s.time === slot.time);
-  if (!match || match.taken) {
+  let match = daySlots.find(s => s.time === slot.time);
+  if (!match) { match = { time: slot.time, taken: false }; daySlots.push(match); }
+  if (match.taken) {
     return { statusCode: 409, body: JSON.stringify({ error: 'slot_unavailable' }) };
   }
   match.taken = true; // held pending confirmation
 
   const booking = {
     id: 'b_' + Date.now(),
-    name, phone, address, division, slot, quote,
+    name, phone, email, address, division, slot, quote,
     status: 'pending',
     confirmToken: crypto.randomBytes(16).toString('hex'),
     createdAt: new Date().toISOString()
