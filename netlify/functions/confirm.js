@@ -1,4 +1,5 @@
 const { loadDB, saveDB } = require('./_store');
+const { notifyCustomer } = require('./_mailer');
 
 function page(title, message, color) {
   return {
@@ -23,6 +24,8 @@ exports.handler = async (event) => {
 
   booking.status = 'confirmed';
   await saveDB(db);
+
+  try { await notifyCustomer(booking, 'confirmed'); } catch (e) { console.error('notifyCustomer failed', e); }
 
   return page('Booking confirmed ✓', `${booking.name} — ${booking.slot.date} at ${booking.slot.time} is now confirmed. Customer can be notified directly.`, '#1f5c4a');
 };
