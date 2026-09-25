@@ -1,4 +1,5 @@
 const { loadDB, saveDB } = require('./_store');
+const { notifyCustomer } = require('./_mailer');
 
 function page(title, message, color) {
   return {
@@ -28,5 +29,6 @@ exports.handler = async (event) => {
 
   await saveDB(db);
 
-  return page('Declined', `${booking.name}'s request for ${booking.slot.date} ${booking.slot.time} was declined and the slot is open again.`, '#b1442e');
-};
+  try { await notifyCustomer(booking, 'declined'); } catch (e) { console.error('notifyCustomer failed', e); }
+
+  return page('Dec
