@@ -71,6 +71,8 @@
     <input type="text" id="custName">
     <label>Phone</label>
     <input type="tel" id="custPhone">
+    <label>Email</label>
+    <input type="text" id="custEmail">
     <label>Service address</label>
     <input type="text" id="custAddress">
     <label>Preferred date</label>
@@ -265,17 +267,18 @@
   document.getElementById('submitBtn').addEventListener('click', async () => {
     const name = document.getElementById('custName').value.trim();
     const phone = document.getElementById('custPhone').value.trim();
+    const email = document.getElementById('custEmail').value.trim();
     const address = document.getElementById('custAddress').value.trim();
     const date = document.getElementById('custDate').value;
     const time = document.getElementById('custTime').value;
     const errEl = document.getElementById('submitError');
     errEl.textContent = '';
 
-    if (!name || !phone || !address || !date) { errEl.textContent = 'Please fill in all fields.'; return; }
+    if (!name || !phone || !email || !address || !date) { errEl.textContent = 'Please fill in all fields.'; return; }
 
     const formatted = formatQuote(state.quote);
     const body = {
-      name, phone, address,
+      name, phone, email, address,
       division: state.division,
       slot: { date, time },
       quote: { low: parseFloat((formatted.text.match(/\d+/) || [0])[0]) || 0, high: parseFloat((formatted.text.match(/\d+(?!.*\d)/) || [0])[0]) || 0, label: formatted.text }
