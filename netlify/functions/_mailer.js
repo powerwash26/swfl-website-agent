@@ -23,6 +23,7 @@ async function notifyTeam(booking) {
     <p>
       Name: ${booking.name}<br>
       Phone: ${booking.phone}<br>
+      Email: ${booking.email}<br>
       Address: ${booking.address}<br>
       Division: ${booking.division}<br>
       Requested: ${booking.slot.date} at ${booking.slot.time}<br>
@@ -42,4 +43,22 @@ async function notifyTeam(booking) {
   });
 }
 
-module.exports = { notifyTeam };
+async function notifyCustomer(booking, status) {
+  if (!booking.email) return;
+  const isConfirmed = status === 'confirmed';
+  const html = `
+    <p>Hi ${booking.name},</p>
+    <p>${isConfirmed
+      ? `Your service request for <strong>${booking.slot.date} at ${booking.slot.time}</strong> is confirmed.`
+      : `Unfortunately we're unable to accommodate your request for ${booking.slot.date} at ${booking.slot.time}. Please contact us to reschedule.`}</p>
+    <p>Southwest Florida Clean &amp; Wash Solutions<br>239-603-9744<br>swflcleanandwash@gmail.com</p>
+  `;
+  await getTransport().sendMail({
+    from: process.env.GMAIL_USER,
+    to: booking.email,
+    subject: isConfirmed ? 'Your SWFL service is confirmed' : 'Update on your SWFL service request',
+    html
+  });
+}
+
+module.exports = { notifyTeam, notifyCustomer };
